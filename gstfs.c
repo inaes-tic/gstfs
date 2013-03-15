@@ -64,6 +64,15 @@ void usage(const char *prog)
 }
 
 /*
+ *  Return true if filename has extension dst_ext.
+ */
+int is_target_type(const char *filename)
+{
+    char *ext = strrchr(filename, '.');
+    return (ext && strcmp(ext+1, mount_info.dst_ext) == 0);
+}
+
+/*
  *  Create a new gstfs_file_info object using the specified destination file.
  */
 struct gstfs_file_info *get_file_info(const char *filename)
@@ -109,13 +118,16 @@ char *replace_ext(char *filename, char *search, char *replace)
     return filename;
 }
 
-/*
- *  Return true if filename has extension dst_ext.
- */
-int is_target_type(const char *filename)
+int gstfs_statfs(const char *path, struct statvfs *buf)
 {
-    char *ext = strrchr(filename, '.');
-    return (ext && strcmp(ext+1, mount_info.dst_ext) == 0);
+    char *source_path;
+
+    source_path = get_source_path(path);
+    if (statvfs(source_path, buf))
+        return -errno;
+
+    g_free(source_path);
+    return 0;
 }
 
 /*
@@ -216,18 +228,6 @@ static char *canonize(const char *cwd, const char *filename)
         return g_strdup_printf("%s/%s", cwd, filename);
 }
 
-int gstfs_statfs(const char *path, struct statvfs *buf)
-{
-    char *source_path;
-
-    source_path = get_source_path(path);
-    if (statvfs(source_path, buf))
-        return -errno;
-
-    g_free(source_path);
-    return 0;
-}
-
 int gstfs_getattr(const char *path, struct stat *stbuf)
 {
     int ret = 0;
@@ -245,12 +245,12 @@ int gstfs_getattr(const char *path, struct stat *stbuf)
     return ret;
 }
 
-static int read_cb(char *buf, size_t size, void *data)
+static int write_cb(char *buf, size_t size, void *data)
 {
     struct gstfs_file_info *info = (struct gstfs_file_info *) data;
 
     size_t newsz = info->len + size;
-   
+
     if (info->alloc_len < newsz)
     {
         info->alloc_len = max(info->alloc_len * 2, newsz);
@@ -264,18 +264,18 @@ static int read_cb(char *buf, size_t size, void *data)
     return 0;
 }
 
-int gstfs_read_passthru(const char *path, char *buf, size_t size, off_t offset)
+int gstfs_write_passthru(const char *path, const char *buf, size_t size, off_t offset)
 {
     size_t count;
     int fd = open(path, O_RDONLY);
 
     lseek(fd, offset, SEEK_SET);
-    count = read(fd, buf, size);
+    count = write(fd, buf, size);
     close(fd);
     return count;
 }
 
-int gstfs_read(const char *path, char *buf, size_t size, off_t offset, 
+int gstfs_write(const char *path, const char *buf, size_t size, off_t offset, 
     struct fuse_file_info *fi)
 {
     struct gstfs_file_info *info = gstfs_lookup(path);
@@ -286,17 +286,17 @@ int gstfs_read(const char *path, char *buf, size_t size, off_t offset,
 
     pthread_mutex_lock(&info->mutex);
     if (info->passthru)
-        return gstfs_read_passthru(info->src_filename, buf, size, offset);
+        return gstfs_write_passthru(info->src_filename, buf, size, offset);
 
     if (!info->buf)
-        transcode(mount_info.pipeline, info->src_filename, read_cb, info);
-    
+        transcode(mount_info.pipeline, info->src_filename, write_cb, info);
+
     if (info->len <= offset)
         goto out;
 
     count = min(info->len - offset, size);
 
-    memcpy(buf, &info->buf[offset], count);
+    memcpy((void* ) buf, &info->buf[offset], count);
 
 out:
     pthread_mutex_unlock(&info->mutex);
@@ -346,7 +346,7 @@ static struct fuse_operations gstfs_opers = {
     .statfs = gstfs_statfs,
     .getattr = gstfs_getattr,
     .open = gstfs_open,
-    .read = gstfs_read
+    .write = gstfs_write
 };
 
 static struct fuse_opt gstfs_opts[] = {

@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <stdio.h>
 
 struct pipe_params
 {
@@ -20,7 +21,7 @@ void *send_pipe(void *data)
     struct pipe_params *param = (struct pipe_params *) data;
     char buf[PIPE_BUF];
     size_t sizeread;
-    
+
     while ((sizeread = read(param->fd, buf, sizeof(buf))) > 0)
     {
         param->add_data_cb(buf, sizeread, param->user_data);
