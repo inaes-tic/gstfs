@@ -30,7 +30,7 @@ struct gstfs_mount_info
     GQueue *cache_lru;           /* queue of items in LRU order */
     int max_cache_entries;       /* max # of entries in the cache */
     char *src_mnt;               /* directory we are mirroring */
-    char *src_ext;               /* extension of files we transcode */
+    char *src_ext;               /* extension of files we transcode, all if NULL*/
     char *dst_ext;               /* extension of target files */
     char *pipeline;              /* gstreamer pipeline */
 };
@@ -56,9 +56,9 @@ void usage(const char *prog)
     printf("Usage: %s -o [options] mount_point\n\n"
            "where options can be:\n"
            "   src=[source directory]    (required)\n"
-           "   src_ext=[mp3|ogg|...]     (required)\n"
            "   dst_ext=[mp3|ogg|...]     (required)\n"
            "   pipeline=[gst pipeline]   (required)\n"
+           "   src_ext=[mp3|ogg|...]     (optional)\n"
            "   ncache=[0-9]*             (optional)\n",
            prog);
 }
@@ -368,7 +368,6 @@ int main(int argc, char *argv[])
         return -1;
 
     if (!mount_info.src_mnt ||
-        !mount_info.src_ext ||
         !mount_info.dst_ext ||
         !mount_info.pipeline)
     {
