@@ -338,13 +338,8 @@ int gstfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
     while ((dirent = readdir(dir)))
     {
-        char *s = g_strdup(dirent->d_name);
-        s = replace_ext(s, mount_info.src_ext, mount_info.dst_ext);
-        filler(buf, s, NULL, 0);
-
-        g_free(s);
+        filler(buf, dirent->d_name, NULL, 0);
     }
-    closedir(dir);
 
     return 0;
 }
