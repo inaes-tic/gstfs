@@ -306,6 +306,11 @@ out:
     return count;
 }
 
+static int gstfs_mknod(const char *path, mode_t mode, dev_t rdev)
+{
+    return -mknod (path, mode, rdev);
+}
+
 int gstfs_open(const char *path, struct fuse_file_info *fi)
 {
     struct gstfs_file_info *info = gstfs_lookup(path);
@@ -349,7 +354,8 @@ static struct fuse_operations gstfs_opers = {
     .statfs = gstfs_statfs,
     .getattr = gstfs_getattr,
     .open = gstfs_open,
-    .write = gstfs_write
+    .write = gstfs_write,
+    .mknod = gstfs_mknod
 };
 
 static struct fuse_opt gstfs_opts[] = {
