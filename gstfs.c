@@ -393,6 +393,6 @@ int main(int argc, char *argv[])
     mount_info.file_cache = g_hash_table_new(g_str_hash, g_str_equal);
     mount_info.cache_lru = g_queue_new();
 
-    gst_init(&argc, &argv);
+    gst_init(0, NULL); //&argc, &argv);
     return fuse_main(args.argc, args.argv, &gstfs_opers, NULL);
 }
