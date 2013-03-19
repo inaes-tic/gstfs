@@ -121,18 +121,6 @@ char *replace_ext(char *filename, char *search, char *replace)
     return filename;
 }
 
-int gstfs_statfs(const char *path, struct statvfs *buf)
-{
-    char *source_path;
-
-    source_path = get_source_path(path);
-    if (statvfs(source_path, buf))
-        return -errno;
-
-    g_free(source_path);
-    return 0;
-}
-
 /*
  *  Return true if filename exists in the original dir.
  */
@@ -141,7 +129,7 @@ bool exists_in_mirror(const char *filename)
     int result;
     struct statvfs buf;
 
-    result = gstfs_statfs(filename, &buf);
+    result = flect_statfs(filename, &buf);
     return result == 0;
 }
 
@@ -363,7 +351,6 @@ int main(int argc, char *argv[])
 
     fops = flect_get_fops ();
     fops->getattr = gstfs_getattr;
-    fops->statfs  = gstfs_statfs;
     fops->open    = gstfs_open;
     fops->write   = gstfs_write;
 

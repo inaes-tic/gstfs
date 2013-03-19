@@ -204,7 +204,7 @@ static int flect_write(const char *path, const char *buf, size_t size,
 	RET(pwrite(fd, buf, size, offset), close(fd); return __r, close(fd))
 }
 
-static int flect_statfs(const char *path, struct statvfs *stbuf)
+int flect_statfs(const char *path, struct statvfs *stbuf)
 {
 	SRC(path)
 	RET(statvfs(path, stbuf),,)
