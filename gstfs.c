@@ -306,11 +306,6 @@ out:
     return count;
 }
 
-static int gstfs_mknod(const char *path, mode_t mode, dev_t rdev)
-{
-    return -mknod (path, mode, rdev);
-}
-
 int gstfs_open(const char *path, struct fuse_file_info *fi)
 {
     struct gstfs_file_info *info = gstfs_lookup(path);
@@ -319,39 +314,6 @@ int gstfs_open(const char *path, struct fuse_file_info *fi)
 
     return 0;
 }
-
-/*
- *  Copy all entries from source mount, replacing extensions along the way.
- */
-int gstfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-    off_t offset, struct fuse_file_info *fi)
-{
-    struct dirent *dirent;
-    DIR *dir;
-    char *source_path;
-
-    source_path = get_source_path(path);
-    dir = opendir(source_path);
-
-    if (!dir)
-        return -ENOENT;
-
-    while ((dirent = readdir(dir)))
-    {
-        filler(buf, dirent->d_name, NULL, 0);
-    }
-
-    return 0;
-}
-
-static struct fuse_operations gstfs_opers = {
-    .readdir = gstfs_readdir,
-    .statfs = gstfs_statfs,
-    .getattr = gstfs_getattr,
-    .open = gstfs_open,
-    .write = gstfs_write,
-    .mknod = gstfs_mknod
-};
 
 static struct fuse_opt gstfs_opts[] = {
     GSTFS_OPT_KEY("src=%s", src_mnt, 0),
@@ -367,6 +329,7 @@ int main(int argc, char *argv[])
 {
     char pwd[2048];
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+    struct fuse_operations *fops;
 
     if (fuse_opt_parse(&args, &mount_info, gstfs_opts, NULL) == -1)
         return -1;
@@ -395,5 +358,14 @@ int main(int argc, char *argv[])
     mount_info.cache_lru = g_queue_new();
 
     gst_init(0, NULL); //&argc, &argv);
-    return fuse_main(args.argc, args.argv, &gstfs_opers, NULL);
+
+    flect_init (mount_info.src_mnt);
+
+    fops = flect_get_fops ();
+    fops->getattr = gstfs_getattr;
+    fops->statfs  = gstfs_statfs;
+    fops->open    = gstfs_open;
+    fops->write   = gstfs_write;
+
+    return fuse_main(args.argc, args.argv, fops, NULL);
 }
